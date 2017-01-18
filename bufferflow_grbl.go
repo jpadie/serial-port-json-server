@@ -16,6 +16,7 @@ type BufferflowGrbl struct {
 	Paused    bool
 	BufferMax int
 	q         *Queue
+	availableBuffer int
 
 	// use thread locking for b.Paused
 	lock *sync.Mutex
@@ -33,6 +34,8 @@ type BufferflowGrbl struct {
 	initline  *regexp.Regexp
 	qry       *regexp.Regexp
 	rpt       *regexp.Regexp
+	bf	  *regexp.Regexp
+	b.grblVer *regexp.Regexp
 }
 
 func (b *BufferflowGrbl) Init() {
@@ -42,7 +45,7 @@ func (b *BufferflowGrbl) Init() {
 	log.Println("Initting GRBL buffer flow")
 	// b.BufferMax = 127 //max buffer size 127 bytes available
 	b.BufferMax = 125 // changed to be safe with extra chars
-
+	b.availableBuffer = b.BufferMax;
 	b.q = NewQueue()
 
 	//create channels
@@ -55,13 +58,19 @@ func (b *BufferflowGrbl) Init() {
 	b.initline, _ = regexp.Compile("^Grbl")
 	b.qry, _ = regexp.Compile("\\?")
 	b.rpt, _ = regexp.Compile("^<")
+	b.bf, _ = regexp.Compile("Bf:[0-9]{1,3},([0-9]{1,3})") //Bf:15,128
+	b.grblVer, _ = regexp.Compile("Grbl ([0-9.]+[a-z]{0,1})") //version number 0.9e
 
 	//initialize query loop
 	b.rptQueryLoop(b.parent_serport)
 }
 
 func (b *BufferflowGrbl) RewriteSerialData(cmd string, id string) string {
-	return ""
+	return "" 
+}
+
+func (b *BufferflowGrbl) isGrblV1(){
+	return b.version[:1] == "1"
 }
 
 func (b *BufferflowGrbl) BlockUntilReady(cmd string, id string) (bool, bool, string) {
@@ -72,11 +81,19 @@ func (b *BufferflowGrbl) BlockUntilReady(cmd string, id string) (bool, bool, str
 	log.Printf("New line length: %v, buffer size increased to:%v\n", len(cmd), b.q.LenOfCmds())
 	log.Println(b.q)
 
-	if b.q.LenOfCmds() >= b.BufferMax {
-		b.SetPaused(true, 0)
-		log.Printf("Buffer Full - Will send this command when space is available")
+	if b.isGrblV1(){
+		var nextMessage, _ = b.q.peek();
+		if len(nextMessage) > b.availableBuffer {
+			b.setPaused(true, 0)
+			log.Printf("Buffer Full - Will send this command when space is available")
+		}
+	} else {
+		if b.q.LenOfCmds() >= b.BufferMax {
+			b.SetPaused(true, 0)
+			log.Printf("Buffer Full - Will send this command when space is available")
+		}
 	}
-
+	
 	if b.GetPaused() {
 		log.Println("It appears we are being asked to pause, so we will wait on b.sem")
 		// We are being asked to pause our sending of commands
@@ -180,8 +197,8 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			if b.GetPaused() {
 				b.SetPaused(false, 2)
 			}
-
-			b.version = element //save element in version
+			result:= b.grblVer.FindStringSubmatch(element)
+			b.version = result[1] //save element in version
 
 			//Check for report output, compare to last report output, if different return to client to update status; otherwise ignore status.
 		} else if b.rpt.MatchString(element) {
@@ -189,7 +206,8 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 				log.Println("Grbl status has not changed, not reporting to client")
 				continue //skip this element as the cnc position has not changed, and move on to the next element.
 			}
-
+			result:= b.bf.FindStringSubmatch(element) //extract buffer data
+			b.availableBuffer = strconv.ParseInt(result[1], 10, 0)
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		}
 

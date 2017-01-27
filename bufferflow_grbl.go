@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 	//"time"
-	"errors"
-	"fmt"
+	//"errors"
+	//"fmt"
 	"runtime/debug"
 	"time"
 )
@@ -55,9 +55,9 @@ type BufferflowGrbl struct {
 	// use more thread locking for b.semLock
 	semLock *sync.Mutex
 
-	availableRXBuffer int
+	availableBufferSpace int
 }
-
+/*
 type GcodeCmd struct {
 	Cmd string
 	Id  string
@@ -84,8 +84,9 @@ type BufFlowRx struct {
 	IsErr              bool
 	Err                string
 	TotalInBufPerSpjs  int
-	TotalInBufPerTinyG int
+	TotalInBufPerGrbl int
 }
+*/
 
 func (b *BufferflowGrbl) GetManualPaused() bool {
 	b.manualLock.Lock()
@@ -171,7 +172,7 @@ func (b *BufferflowGrbl) rxQueryLoop(p *serport) {
 	}()
 }
 
-func (b *BufferflowTinyg) IsBufferGloballySendingBackIncomingData() bool {
+func (b *BufferflowGrbl) IsBufferGloballySendingBackIncomingData() bool {
 	// we want to send back incoming data as per line data
 	// rather than having the default spjs implemenation that sends back data
 	// as it sees it. the reason is that we were getting packets out of order
@@ -328,7 +329,7 @@ func (b *BufferflowGrbl) ClearOutSemaphore() {
 
 }
 
-func (b *BufferflowTinyg) RewriteSerialData(cmd string, id string) string {
+func (b *BufferflowGrbl) RewriteSerialData(cmd string, id string) string {
 	return ""
 }
 
@@ -352,7 +353,7 @@ func (b *BufferflowGrbl) Init() {
 	// buffered
 	b.sem = make(chan int, 1000)
 
-	b.availableRXBuffer = b.BufferMax
+	b.availableBufferSpace = b.BufferMax
 
 	//define regex
 	b.reNewLine, _ = regexp.Compile("\\r{0,1}\\n{1,2}") //\\r{0,1}
@@ -564,7 +565,8 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			}
 
 			var matches = b.initline.FindStringSubmatch(element)
-			if matches[1] {
+			var value, isset = matches[1];
+			if isset
 				b.version = matches[1] //save element in version
 			} else {
 				b.version = element
@@ -578,7 +580,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		} else if b.buf.MatchString(element) {
-			var bufMatches = b.buf.FindAllStringSubmatch(element)
+			var bufMatches = b.buf.FindStringSubmatch(element)
 			b.availableBufferSpace = bufMatches[1]
 
 		}

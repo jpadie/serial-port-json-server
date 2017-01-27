@@ -566,7 +566,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 
 			var matches = b.initline.FindStringSubmatch(element)
 			var value, isset = matches[1];
-			if isset
+			if isset {
 				b.version = matches[1] //save element in version
 			} else {
 				b.version = element

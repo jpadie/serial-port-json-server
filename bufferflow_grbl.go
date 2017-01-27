@@ -55,7 +55,7 @@ type BufferflowGrbl struct {
 	// use more thread locking for b.semLock
 	semLock *sync.Mutex
 
-	availableBufferSpace int
+	availableBufferSpace int16
 }
 /*
 type GcodeCmd struct {

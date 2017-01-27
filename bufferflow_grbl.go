@@ -563,7 +563,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			if b.GetPaused() {
 				b.SetPaused(false, 2)
 			}
-			var matches = b.initline.FindStringSubMatch(element)
+			var matches = b.initline.FindStringSubmatch(element)
 			
 
 			b.version = matches[1] //save element in version
@@ -578,7 +578,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		} else if b.buf.MatchString(element) {
 			var bufMatches = b.buf.FindStringSubmatch(element)
-			b.availableBufferSpace = strconv.ParseInt(bufMatches[1],10)
+			b.availableBufferSpace = strconv.ParseInt(bufMatches[1],10,16)
 
 		}
 		// handle communication back to client

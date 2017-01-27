@@ -8,8 +8,13 @@ import (
 	"strings"
 	"sync"
 	//"time"
+<<<<<<< HEAD
 	"errors"
 	"fmt"
+=======
+	//"errors"
+	//"fmt"
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	"runtime/debug"
 	"time"
 )
@@ -31,6 +36,7 @@ type BufferflowGrbl struct {
 	LastStatus string //do we need this?
 
 	version string
+<<<<<<< HEAD
 
 	quit           chan int
 	parent_serport *serport
@@ -88,6 +94,65 @@ type BufFlowRx struct {
 	TotalInBufPerTinyG int
 }
 
+=======
+
+	quit chan int
+
+	reNewLine    *regexp.Regexp
+	ok           *regexp.Regexp
+	err          *regexp.Regexp
+	initline     *regexp.Regexp
+	qry          *regexp.Regexp
+	rpt          *regexp.Regexp
+	reComment    *regexp.Regexp
+	reComment2   *regexp.Regexp
+	statusReport *regexp.Regexp
+	reNoResponse *regexp.Regexp
+	buf          *regexp.Regexp
+	statusConfig *regexp.Regexp
+	// use thread locking for b.Paused
+	lock *sync.Mutex
+
+	// use thread locking for b.ManualPaused
+	manualLock *sync.Mutex
+
+	// use more thread locking for b.semLock
+	semLock *sync.Mutex
+
+	availableBufferSpace int
+}
+/*
+type GcodeCmd struct {
+	Cmd string
+	Id  string
+}
+
+type BufFlowCmd struct {
+	Cmd                          string
+	Gcode                        string
+	Resp                         string
+	Id                           string
+	HowMuchWeThinkWeShouldRemove int
+	HowMuchTinyTellsUsToRemove   int
+	IsMatchOnBufDecreaseCnt      bool
+	IsErr                        bool
+	Err                          string
+	//TotalInBufPerSpjs            int
+	//TotalInBufPerTinyG           int
+}
+
+type BufFlowRx struct {
+	Cmd                string
+	Resp               string
+	IsMatchOnTotalBuf  bool
+	IsErr              bool
+	Err                string
+	TotalInBufPerSpjs  int
+	TotalInBufPerGrbl int
+}
+*/
+
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 func (b *BufferflowGrbl) GetManualPaused() bool {
 	b.manualLock.Lock()
 	defer b.manualLock.Unlock()
@@ -172,7 +237,11 @@ func (b *BufferflowGrbl) rxQueryLoop(p *serport) {
 	}()
 }
 
+<<<<<<< HEAD
 func (b *BufferflowTinyg) IsBufferGloballySendingBackIncomingData() bool {
+=======
+func (b *BufferflowGrbl) IsBufferGloballySendingBackIncomingData() bool {
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	// we want to send back incoming data as per line data
 	// rather than having the default spjs implemenation that sends back data
 	// as it sees it. the reason is that we were getting packets out of order
@@ -329,7 +398,11 @@ func (b *BufferflowGrbl) ClearOutSemaphore() {
 
 }
 
+<<<<<<< HEAD
 func (b *BufferflowTinyg) RewriteSerialData(cmd string, id string) string {
+=======
+func (b *BufferflowGrbl) RewriteSerialData(cmd string, id string) string {
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	return ""
 }
 
@@ -353,7 +426,11 @@ func (b *BufferflowGrbl) Init() {
 	// buffered
 	b.sem = make(chan int, 1000)
 
+<<<<<<< HEAD
 	b.availableRXBuffer = b.BufferMax
+=======
+	b.availableBufferSpace = b.BufferMax
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 
 	//define regex
 	b.reNewLine, _ = regexp.Compile("\\r{0,1}\\n{1,2}") //\\r{0,1}
@@ -563,6 +640,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			if b.GetPaused() {
 				b.SetPaused(false, 2)
 			}
+<<<<<<< HEAD
 
 			var matches = b.initline.FindStringSubmatch(element)
 			if matches[1] {
@@ -570,6 +648,13 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			} else {
 				b.version = element
 			}
+=======
+			var matches = b.initline.FindStringSubmatch(element)
+			
+
+			b.version = matches[1] //save element in version
+			
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 			//Check for report output, compare to last report output, if different return to client to update status; otherwise ignore status.
 		} else if b.rpt.MatchString(element) {
 			if element == b.LastStatus {
@@ -579,8 +664,13 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		} else if b.buf.MatchString(element) {
+<<<<<<< HEAD
 			var bufMatches = b.buf.FindAllStringSubmatch(element)
 			b.availableBufferSpace = bufMatches[1]
+=======
+			var bufMatches = b.buf.FindStringSubmatch(element)
+			b.availableBufferSpace, _ = strconv.Atoi(bufMatches[1])
+>>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 
 		}
 		// handle communication back to client

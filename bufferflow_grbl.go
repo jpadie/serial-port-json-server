@@ -564,13 +564,8 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 				b.SetPaused(false, 2)
 			}
 
-			var matches = b.initline.FindStringSubmatch(element)
-			var value, isset = matches[1];
-			if isset {
-				b.version = matches[1] //save element in version
-			} else {
-				b.version = element
-			}
+			b.version = matches[1] //save element in version
+			
 			//Check for report output, compare to last report output, if different return to client to update status; otherwise ignore status.
 		} else if b.rpt.MatchString(element) {
 			if element == b.LastStatus {
@@ -581,7 +576,7 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		} else if b.buf.MatchString(element) {
 			var bufMatches = b.buf.FindStringSubmatch(element)
-			b.availableBufferSpace = bufMatches[1]
+			b.availableBufferSpace = strconv.ParseInt(bufMatches[1])
 
 		}
 		// handle communication back to client

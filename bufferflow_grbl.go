@@ -8,151 +8,99 @@ import (
 	"strings"
 	"sync"
 	//"time"
-<<<<<<< HEAD
-	"errors"
-	"fmt"
-=======
 	//"errors"
 	//"fmt"
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	"runtime/debug"
 	"time"
 )
 
 type BufferflowGrbl struct {
-	Name           string
-	Port           string
-	parent_serport *serport
+	Name           			string
+	Port           			string
+	parent_serport 			*serport
 
-	Paused       bool
-	ManualPaused bool // indicates user hard paused the buffer on their own, i.e. not from flow control
+	Paused       			bool
+	ManualPaused 			bool // indicates user hard paused the buffer on their own, i.e. not from flow control
 
-	BufferMax int
-	q         *Queue
+	BufferMax 				int
+	availableBufferSpace 	int
+	q         				*Queue
 
-	sem chan int // semaphore to wait on until given release
+	sem 					chan int // semaphore to wait on until given release
 
-	LatestData string // this holds the latest data across multiple serial reads so we can analyze it for qr responses
-	LastStatus string //do we need this?
+	LatestData 				string // this holds the latest data across multiple serial reads so we can analyze it for qr responses
+	LastStatus 				string //do we need this?
 
-	version string
-<<<<<<< HEAD
+	version 				string
 
-	quit           chan int
-	parent_serport *serport
+	quit 					chan int
 
-	reNewLine    *regexp.Regexp
-	ok           *regexp.Regexp
-	err          *regexp.Regexp
-	initline     *regexp.Regexp
-	qry          *regexp.Regexp
-	rpt          *regexp.Regexp
-	reComment    *regexp.Regexp
-	reComment2   *regexp.Regexp
-	statusReport *regexp.Regexp
-	reNoResponse *regexp.Regexp
-	buf          *regexp.Regexp
-	statusConfig *regexp.Regexp
-	// use thread locking for b.Paused
-	lock *sync.Mutex
-
-	// use thread locking for b.ManualPaused
-	manualLock *sync.Mutex
-
-	// use more thread locking for b.semLock
-	semLock *sync.Mutex
-
-	availableRXBuffer int
+	reNewLine    			*regexp.Regexp
+	ok           			*regexp.Regexp
+	err          			*regexp.Regexp
+	initline     			*regexp.Regexp
+	qry          			*regexp.Regexp
+	rpt          			*regexp.Regexp
+	reComment    			*regexp.Regexp
+	reComment2   			*regexp.Regexp
+	statusReport 			*regexp.Regexp
+	reNoResponse 			*regexp.Regexp
+	buf          			*regexp.Regexp
+	statusConfig 			*regexp.Regexp
+	
+	
+	lock 					*sync.Mutex  // use thread locking for b.Paused
+	manualLock 				*sync.Mutex  // use thread locking for b.ManualPaused
+	semLock 				*sync.Mutex  // use more thread locking for b.semLock
 }
 
-type GcodeCmd struct {
-	Cmd string
-	Id  string
+func (b *BufferflowGrbl) Init() {
+
+	b.Paused = false
+	b.ManualPaused = false
+	log.Println("Initting GRBL buffer flow")
+	// b.BufferMax = 127 //max buffer size 127 bytes available
+	b.BufferMax = 125 // changed to be safe with extra chars
+	b.lock = &sync.Mutex{}
+	b.manualLock = &sync.Mutex{}
+	b.semLock = &sync.Mutex{}
+	//b.SetPaused(false, 2)
+	b.q = NewQueue()
+
+	// make buffered channel big enough we won't overflow it
+	// meaning we get told b.sem on incoming data, so at most this could
+	// be the size of 1 character and the TinyG only allows 255, so just
+	// go high to make sure it's high enough to never block
+	// buffered
+	b.sem = make(chan int, 1000)
+
+	b.availableBufferSpace = b.BufferMax
+
+	//define regex
+	b.reNewLine, _ = regexp.Compile("\\r{0,1}\\n{1,2}") //\\r{0,1}
+	b.ok, _ = regexp.Compile("^ok")
+	b.err, _ = regexp.Compile("^error")
+	b.initline, _ = regexp.Compile("^Grbl v?(.+) .*")
+	b.qry, _ = regexp.Compile("\\?")
+	b.rpt, _ = regexp.Compile("^<")
+	b.statusReport, _ = regexp.Compile("^\\$10=1")
+	b.buf, _ = regexp.Compile("Bf:[0-9]{1,3},([0-9]{1,3})")
+	b.statusConfig, _ = regexp.Compile("^\\$10=1")
+
+	// this regexp catches !, ~, %, \n, $ by itself, or $$ by itself and indicates
+	// no response will come back so don't expect it
+	b.reNoResponse, _ = regexp.Compile("^[!~%\n$?]")
+
+	b.reComment, _ = regexp.Compile("\\(.*?\\)")	//to get rid of comments
+	b.reComment2, _ = regexp.Compile(";.*")    
+
+	//initialize query loop
+	//b.rxQueryLoop(b.parent_serport)
+	
+	b.rptQueryLoop(b.parent_serport)
+
 }
 
-type BufFlowCmd struct {
-	Cmd                          string
-	Gcode                        string
-	Resp                         string
-	Id                           string
-	HowMuchWeThinkWeShouldRemove int
-	HowMuchTinyTellsUsToRemove   int
-	IsMatchOnBufDecreaseCnt      bool
-	IsErr                        bool
-	Err                          string
-	//TotalInBufPerSpjs            int
-	//TotalInBufPerTinyG           int
-}
-
-type BufFlowRx struct {
-	Cmd                string
-	Resp               string
-	IsMatchOnTotalBuf  bool
-	IsErr              bool
-	Err                string
-	TotalInBufPerSpjs  int
-	TotalInBufPerTinyG int
-}
-
-=======
-
-	quit chan int
-
-	reNewLine    *regexp.Regexp
-	ok           *regexp.Regexp
-	err          *regexp.Regexp
-	initline     *regexp.Regexp
-	qry          *regexp.Regexp
-	rpt          *regexp.Regexp
-	reComment    *regexp.Regexp
-	reComment2   *regexp.Regexp
-	statusReport *regexp.Regexp
-	reNoResponse *regexp.Regexp
-	buf          *regexp.Regexp
-	statusConfig *regexp.Regexp
-	// use thread locking for b.Paused
-	lock *sync.Mutex
-
-	// use thread locking for b.ManualPaused
-	manualLock *sync.Mutex
-
-	// use more thread locking for b.semLock
-	semLock *sync.Mutex
-
-	availableBufferSpace int
-}
-/*
-type GcodeCmd struct {
-	Cmd string
-	Id  string
-}
-
-type BufFlowCmd struct {
-	Cmd                          string
-	Gcode                        string
-	Resp                         string
-	Id                           string
-	HowMuchWeThinkWeShouldRemove int
-	HowMuchTinyTellsUsToRemove   int
-	IsMatchOnBufDecreaseCnt      bool
-	IsErr                        bool
-	Err                          string
-	//TotalInBufPerSpjs            int
-	//TotalInBufPerTinyG           int
-}
-
-type BufFlowRx struct {
-	Cmd                string
-	Resp               string
-	IsMatchOnTotalBuf  bool
-	IsErr              bool
-	Err                string
-	TotalInBufPerSpjs  int
-	TotalInBufPerGrbl int
-}
-*/
-
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 func (b *BufferflowGrbl) GetManualPaused() bool {
 	b.manualLock.Lock()
 	defer b.manualLock.Unlock()
@@ -174,17 +122,8 @@ func (b *BufferflowGrbl) SetPaused(isPaused bool, semRelease int) {
 
 	// only release semaphore if we are being told to unpause
 	if b.Paused == false {
-		// the BlockUntilReady thread should be sitting waiting
-		// so when we send this should trigger it
 		b.sem <- semRelease
 		log.Println("Just sent release to b.sem so we will not block the sending to serial port anymore.")
-
-		// since the first consuming of the semRelease will occur
-		// by BlockUntilReady since it's sitting waiting then
-		// we're good to go ahead and release the rest here
-		// so our queue doesn't fill up
-		// that's the theory anyway
-		//b.ClearOutSemaphore()
 	}
 }
 
@@ -204,6 +143,37 @@ func (b *BufferflowGrbl) GetPaused() bool {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	return b.Paused
+}
+
+//Use this function to open a connection, write directly to serial port and close connection.
+//This is used for sending query requests outside of the normal buffered operations that will pause to wait for room in the grbl buffer
+//'?' is asynchronous to the normal buffer load and does not need to be paused when buffer full
+func (b *BufferflowGrbl) rptQueryLoop(p *serport) {
+	b.parent_serport = p //make note of this port for use in clearing the buffer later, on error.
+	ticker := time.NewTicker(250 * time.Millisecond)
+	b.quit = make(chan int)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+
+				n2, err := p.portIo.Write([]byte("?"))
+
+				log.Print("Just wrote ", n2, " bytes to serial: ?")
+
+				if err != nil {
+					errstr := "Error writing to " + p.portConf.Name + " " + err.Error() + " Closing port."
+					log.Print(errstr)
+					h.broadcastSys <- []byte(errstr)
+					ticker.Stop() //stop query loop if we can't write to the port
+					break
+				}
+			case <-b.quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 //Use this function to open a connection, write directly to serial port and close connection.
@@ -237,11 +207,7 @@ func (b *BufferflowGrbl) rxQueryLoop(p *serport) {
 	}()
 }
 
-<<<<<<< HEAD
-func (b *BufferflowTinyg) IsBufferGloballySendingBackIncomingData() bool {
-=======
 func (b *BufferflowGrbl) IsBufferGloballySendingBackIncomingData() bool {
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	// we want to send back incoming data as per line data
 	// rather than having the default spjs implemenation that sends back data
 	// as it sees it. the reason is that we were getting packets out of order
@@ -398,61 +364,8 @@ func (b *BufferflowGrbl) ClearOutSemaphore() {
 
 }
 
-<<<<<<< HEAD
-func (b *BufferflowTinyg) RewriteSerialData(cmd string, id string) string {
-=======
 func (b *BufferflowGrbl) RewriteSerialData(cmd string, id string) string {
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 	return ""
-}
-
-func (b *BufferflowGrbl) Init() {
-
-	b.Paused = false
-	b.ManualPaused = false
-	log.Println("Initting GRBL buffer flow")
-	// b.BufferMax = 127 //max buffer size 127 bytes available
-	b.BufferMax = 125 // changed to be safe with extra chars
-	b.lock = &sync.Mutex{}
-	b.manualLock = &sync.Mutex{}
-	b.semLock = &sync.Mutex{}
-	//b.SetPaused(false, 2)
-	b.q = NewQueue()
-
-	// make buffered channel big enough we won't overflow it
-	// meaning we get told b.sem on incoming data, so at most this could
-	// be the size of 1 character and the TinyG only allows 255, so just
-	// go high to make sure it's high enough to never block
-	// buffered
-	b.sem = make(chan int, 1000)
-
-<<<<<<< HEAD
-	b.availableRXBuffer = b.BufferMax
-=======
-	b.availableBufferSpace = b.BufferMax
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
-
-	//define regex
-	b.reNewLine, _ = regexp.Compile("\\r{0,1}\\n{1,2}") //\\r{0,1}
-	b.ok, _ = regexp.Compile("^ok")
-	b.err, _ = regexp.Compile("^error")
-	b.initline, _ = regexp.Compile("^Grbl v?(.+) .*")
-	b.qry, _ = regexp.Compile("\\?")
-	b.rpt, _ = regexp.Compile("^<")
-	b.statusReport, _ = regexp.Compile("^\\$10=1")
-	b.buf, _ = regexp.Compile("Bf:[0-9]{1,3},([0-9]{1,3})")
-	b.statusConfig, _ = regexp.Compile("^\\$10=1")
-
-	// this regexp catches !, ~, %, \n, $ by itself, or $$ by itself and indicates
-	// no response will come back so don't expect it
-	b.reNoResponse, _ = regexp.Compile("^[!~%\n$?]")
-
-	b.reComment, _ = regexp.Compile("\\(.*?\\)")
-	b.reComment2, _ = regexp.Compile(";.*")
-
-	//initialize query loop
-	//b.rxQueryLoop(b.parent_serport)
-
 }
 
 func (b *BufferflowGrbl) BlockUntilReady(cmd string, id string) (bool, bool, string) {
@@ -640,21 +553,11 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 			if b.GetPaused() {
 				b.SetPaused(false, 2)
 			}
-<<<<<<< HEAD
-
-			var matches = b.initline.FindStringSubmatch(element)
-			if matches[1] {
-				b.version = matches[1] //save element in version
-			} else {
-				b.version = element
-			}
-=======
 			var matches = b.initline.FindStringSubmatch(element)
 			
 
 			b.version = matches[1] //save element in version
 			
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 			//Check for report output, compare to last report output, if different return to client to update status; otherwise ignore status.
 		} else if b.rpt.MatchString(element) {
 			if element == b.LastStatus {
@@ -664,13 +567,8 @@ func (b *BufferflowGrbl) OnIncomingData(data string) {
 
 			b.LastStatus = element //if we make it here something has changed with the status string and laststatus needs updating
 		} else if b.buf.MatchString(element) {
-<<<<<<< HEAD
-			var bufMatches = b.buf.FindAllStringSubmatch(element)
-			b.availableBufferSpace = bufMatches[1]
-=======
 			var bufMatches = b.buf.FindStringSubmatch(element)
 			b.availableBufferSpace, _ = strconv.Atoi(bufMatches[1])
->>>>>>> f34e63ffdebe0be7289db08bac98a193100065f5
 
 		}
 		// handle communication back to client

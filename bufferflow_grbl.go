@@ -15,43 +15,43 @@ import (
 )
 
 type BufferflowGrbl struct {
-	Name           			string
-	Port           			string
-	parent_serport 			*serport
+	Name           		string
+	Port           		string
+	parent_serport		*serport
 
-	Paused       			bool
-	ManualPaused 			bool // indicates user hard paused the buffer on their own, i.e. not from flow control
+	Paused       		bool
+	ManualPaused 		bool // indicates user hard paused the buffer on their own, i.e. not from flow control
 
-	BufferMax 				int
+	BufferMax 		int
 	availableBufferSpace 	int
-	q         				*Queue
+	q         		*Queue
 
-	sem 					chan int // semaphore to wait on until given release
+	sem 			chan int // semaphore to wait on until given release
 
-	LatestData 				string // this holds the latest data across multiple serial reads so we can analyze it for qr responses
-	LastStatus 				string //do we need this?
+	LatestData 		string // this holds the latest data across multiple serial reads so we can analyze it for qr responses
+	LastStatus 		string //do we need this?
 
-	version 				string
+	version 		string
 
-	quit 					chan int
+	quit 			chan int
 
-	reNewLine    			*regexp.Regexp
-	ok           			*regexp.Regexp
-	err          			*regexp.Regexp
-	initline     			*regexp.Regexp
-	qry          			*regexp.Regexp
-	rpt          			*regexp.Regexp
-	reComment    			*regexp.Regexp
-	reComment2   			*regexp.Regexp
-	statusReport 			*regexp.Regexp
-	reNoResponse 			*regexp.Regexp
-	buf          			*regexp.Regexp
-	statusConfig 			*regexp.Regexp
+	reNewLine    		*regexp.Regexp
+	ok           		*regexp.Regexp
+	err          		*regexp.Regexp
+	initline     		*regexp.Regexp
+	qry          		*regexp.Regexp
+	rpt          		*regexp.Regexp
+	reComment    		*regexp.Regexp
+	reComment2   		*regexp.Regexp
+	statusReport 		*regexp.Regexp
+	reNoResponse 		*regexp.Regexp
+	buf          		*regexp.Regexp
+	statusConfig 		*regexp.Regexp
 	
 	
-	lock 					*sync.Mutex  // use thread locking for b.Paused
-	manualLock 				*sync.Mutex  // use thread locking for b.ManualPaused
-	semLock 				*sync.Mutex  // use more thread locking for b.semLock
+	lock 			*sync.Mutex  // use thread locking for b.Paused
+	manualLock 		*sync.Mutex  // use thread locking for b.ManualPaused
+	semLock 		*sync.Mutex  // use more thread locking for b.semLock
 }
 
 func (b *BufferflowGrbl) Init() {
